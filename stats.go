@@ -227,6 +227,10 @@ func GetContainerCpuStat() (float64, error) {
 	if !ok {
 		return 0, errors.New("preContainerCpuUsage load is not float64")
 	}
+
+	preSysTotalCpuUsage.Store(currentSysCpuTotal)
+	preContainerCpuUsage.Store(currentContainerCpuTotal)
+
 	if currentSysCpuTotal-preSysTotalCpu == 0 {
 		return 0, err
 	}
