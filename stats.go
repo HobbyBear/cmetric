@@ -84,8 +84,8 @@ func init() {
 			return
 		}
 	}
-	go InitCpuCollector(2)
-	go InitMemoryCollector(3)
+	go InitCpuCollector(100)
+	go InitMemoryCollector(100)
 }
 
 func isContainerRunning() bool {
