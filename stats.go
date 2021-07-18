@@ -84,8 +84,8 @@ func init() {
 			return
 		}
 	}
-	go InitCpuCollector(100)
-	go InitMemoryCollector(100)
+	go InitCpuCollector(15)
+	go InitMemoryCollector(15)
 }
 
 func isContainerRunning() bool {
@@ -233,7 +233,6 @@ func GetContainerCpuStat() (float64, error) {
 	return (currentContainerCpuTotal - preContainerCpu) * onlineContainerCpuCount / (currentSysCpuTotal - preSysTotalCpu), err
 }
 
-// getProcessCpuStat gets current process's cpu usage in Bytes
 func getProcessCpuStat() (float64, error) {
 	curProcess := currentProcess.Load()
 	if curProcess == nil {
