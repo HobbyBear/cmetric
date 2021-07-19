@@ -48,7 +48,6 @@ func init() {
 	currentCpuUsage.Store(NotRetrievedCpuUsageValue)
 	currentMemoryUsage.Store(NotRetrievedMemoryValue)
 
-	log.Println("current pid ", CurrentPID)
 	p, err := process.NewProcess(int32(CurrentPID))
 	if err != nil {
 		log.Fatal(err, "Fail to new process when initializing system metric", "pid", CurrentPID)
