@@ -3,7 +3,6 @@ package cmetric
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/process"
 	"log"
@@ -77,8 +76,6 @@ func init() {
 			log.Fatal(err, "Fail to getContainerCpuUsage when initializing system metric")
 			return
 		}
-		log.Printf("init read system cpu  %0.2f", currentSysCpuTotal)
-		log.Printf("init read container cpu  %0.2f", currentContainerCpuTotal)
 		preContainerCpuUsage.Store(currentContainerCpuTotal)
 		preSysTotalCpuUsage.Store(currentSysCpuTotal)
 		onlineContainerCpuCount, err = getContainerCpuCount()
@@ -139,7 +136,6 @@ func getSysCpuUsage() (float64, error) {
 		currentSysCpuTotal = stat.User + stat.System + stat.Idle + stat.Nice + stat.Iowait + stat.Irq +
 			stat.Softirq + stat.Steal + stat.Guest + stat.GuestNice
 	}
-	log.Println("system usage ", currentSysCpuTotal)
 	return currentSysCpuTotal, nil
 }
 
@@ -164,7 +160,6 @@ func getContainerCpuUsage() (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println("receive usage ", ns/1e9)
 	return ns / 1e9, nil
 }
 
