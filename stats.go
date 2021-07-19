@@ -3,6 +3,7 @@ package cmetric
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/process"
 	"log"
@@ -145,7 +146,12 @@ func getContainerCpuUsage() (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
 	reader := bufio.NewReader(f)
 	usage, _, err := reader.ReadLine()
 	if err != nil {
@@ -155,6 +161,7 @@ func getContainerCpuUsage() (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+	fmt.Println("receive usage ", ns)
 	return ns / 1e9, nil
 }
 
