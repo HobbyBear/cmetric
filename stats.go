@@ -3,7 +3,7 @@ package cmetric
 import (
 	"bufio"
 	"errors"
-	"github.com/shirou/gopsutil/cpu"
+	"fmt"
 	"github.com/shirou/gopsutil/process"
 	"log"
 	"os"
@@ -84,7 +84,7 @@ func init() {
 			return
 		}
 	}
-	go InitCpuCollector(10)
+	go InitCpuCollector(1000)
 	go InitMemoryCollector(15)
 }
 
@@ -125,18 +125,36 @@ func getContainerCpuCount() (float64, error) {
 }
 
 func getSysCpuUsage() (float64, error) {
-	var (
-		currentSysCpuTotal float64
-	)
-	currentCpuStatArr, err := cpu.Times(false)
+	path := "/proc/stat"
+	f, err := os.Open(path)
 	if err != nil {
 		return 0, err
 	}
-	for _, stat := range currentCpuStatArr {
-		currentSysCpuTotal = stat.User + stat.System + stat.Idle + stat.Nice + stat.Iowait + stat.Irq +
-			stat.Softirq + stat.Steal + stat.Guest + stat.GuestNice
+	defer f.Close()
+	reader := bufio.NewReader(f)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		parts := strings.Fields(line)
+		switch parts[0] {
+		case "cpu":
+			if len(parts) < 8 {
+				return 0, fmt.Errorf("invalid number of cpu fields")
+			}
+			var totalClockTicks float64
+			for _, i := range parts[1:8] {
+				v, err := strconv.ParseFloat(i, 64)
+				if err != nil {
+					return 0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
+				}
+				totalClockTicks += v
+			}
+			return totalClockTicks / 1000, nil
+		}
 	}
-	return currentSysCpuTotal, nil
+	return 0, nil
 }
 
 func getContainerCpuUsage() (float64, error) {
