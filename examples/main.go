@@ -15,6 +15,7 @@ func main() {
 			case <-t.C:
 				fmt.Println("cpu down")
 				time.Sleep(6 * time.Second)
+				t.Reset(6 * time.Second)
 			default:
 
 			}
