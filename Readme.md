@@ -4,6 +4,8 @@
 if environment is container, the cpu ,memory is relative to container,
 else  the metrics is relative to host.
 
+juejing link : https://juejin.cn/post/6986598285406371871/
+
 ### usage
 
 ```
