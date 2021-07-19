@@ -13,9 +13,10 @@ func main() {
 		for {
 			select {
 			case <-t.C:
-				fmt.Println("cpu down")
+				fmt.Println("cpu down===========")
 				time.Sleep(6 * time.Second)
 				t.Reset(6 * time.Second)
+				fmt.Println("cpu up===========")
 			default:
 
 			}
