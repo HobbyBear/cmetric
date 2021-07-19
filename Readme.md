@@ -14,4 +14,3 @@ cpu := cmetric.CurrentCpuUsage()
 		fmt.Println("memory ",memory/(1024 * 1024))
 
 ```
-

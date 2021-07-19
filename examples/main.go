@@ -8,6 +8,19 @@ import (
 
 func main() {
 
+	go func() {
+		t := time.NewTicker(6 * time.Second)
+		for {
+			select {
+			case <-t.C:
+				fmt.Println("cpu down")
+				time.Sleep(6 * time.Second)
+			default:
+
+			}
+		}
+	}()
+
 	for {
 		cpu := cmetric.CurrentCpuUsage()
 		fmt.Println("cpu ", cpu)
