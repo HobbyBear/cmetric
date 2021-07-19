@@ -137,6 +137,7 @@ func getSysCpuUsage() (float64, error) {
 		currentSysCpuTotal = stat.User + stat.System + stat.Idle + stat.Nice + stat.Iowait + stat.Irq +
 			stat.Softirq + stat.Steal + stat.Guest + stat.GuestNice
 	}
+	log.Println("system usage ", currentSysCpuTotal)
 	return currentSysCpuTotal, nil
 }
 
