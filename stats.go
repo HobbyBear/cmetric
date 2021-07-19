@@ -234,7 +234,7 @@ func GetContainerCpuStat() (float64, error) {
 	if currentSysCpuTotal-preSysTotalCpu == 0 {
 		return 0, err
 	}
-	return (currentContainerCpuTotal - preContainerCpu) * onlineContainerCpuCount / (currentSysCpuTotal - preSysTotalCpu), err
+	return (currentContainerCpuTotal - preContainerCpu) * 0.5 / (currentSysCpuTotal - preSysTotalCpu), err
 }
 
 func getProcessCpuStat() (float64, error) {
