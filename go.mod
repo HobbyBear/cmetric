@@ -1,4 +1,4 @@
-module cmetric
+module github.com/HobbyBear/cmetric
 
 go 1.16
 

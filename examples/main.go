@@ -1,8 +1,8 @@
 package main
 
 import (
-	"cmetric"
 	"fmt"
+	"github.com/HobbyBear/cmetric"
 	"time"
 )
 
