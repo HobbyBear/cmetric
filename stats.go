@@ -151,7 +151,7 @@ func getSysCpuUsage() (float64, error) {
 				}
 				totalClockTicks += v
 			}
-			return totalClockTicks / 1000, nil
+			return totalClockTicks / 100, nil
 		}
 	}
 	return 0, nil
