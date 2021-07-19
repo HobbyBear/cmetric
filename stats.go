@@ -77,6 +77,8 @@ func init() {
 			log.Fatal(err, "Fail to getContainerCpuUsage when initializing system metric")
 			return
 		}
+		log.Printf("init read system cpu  %0.2f", currentSysCpuTotal)
+		log.Printf("init read container cpu  %0.2f", currentContainerCpuTotal)
 		preContainerCpuUsage.Store(currentContainerCpuTotal)
 		preSysTotalCpuUsage.Store(currentSysCpuTotal)
 		onlineContainerCpuCount, err = getContainerCpuCount()
@@ -85,7 +87,7 @@ func init() {
 			return
 		}
 	}
-	go InitCpuCollector(1000)
+	go InitCpuCollector(2000)
 	go InitMemoryCollector(15)
 }
 
