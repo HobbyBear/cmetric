@@ -84,7 +84,7 @@ func init() {
 			return
 		}
 	}
-	go InitCpuCollector(15)
+	go InitCpuCollector(1000)
 	go InitMemoryCollector(15)
 }
 
