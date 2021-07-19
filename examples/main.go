@@ -6,22 +6,27 @@ import (
 	"time"
 )
 
-func main() {
-
+func cpuTest() {
 	go func() {
-		t := time.NewTicker(6 * time.Second)
-
 		for {
 			select {
-			case <-t.C:
+			case <-time.After(6 * time.Second):
 				fmt.Println("cpu down===========")
-				time.Sleep(7 * time.Second)
-				fmt.Println("cpu up===========")
+				goto sleep
 			default:
 
 			}
 		}
+	sleep:
+		time.Sleep(6 * time.Second)
+		fmt.Println("cpu up===========")
+		cpuTest()
 	}()
+}
+
+func main() {
+
+	cpuTest()
 
 	for {
 		cpu := cmetric.CurrentCpuUsage()
