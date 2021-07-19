@@ -164,7 +164,7 @@ func getContainerCpuUsage() (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println("receive usage ", ns)
+	fmt.Println("receive usage ", ns/1e9)
 	return ns / 1e9, nil
 }
 
