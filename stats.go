@@ -2,12 +2,10 @@ package cmetric
 
 import (
 	"bufio"
-	"errors"
-	"fmt"
 	"github.com/shirou/gopsutil/process"
 	"log"
 	"os"
-	"strconv"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,18 +13,20 @@ import (
 )
 
 const (
-	NotRetrievedLoadValue     float64 = -1.0
 	NotRetrievedCpuUsageValue float64 = -1.0
-	NotRetrievedMemoryValue   int64   = -1
+	NotRetrievedMemoryValue   float32 = -1
 	CGroupPath                        = "/proc/1/cgroup"
 	DockerPath                        = "/docker"
 	KubepodsPath                      = "/kubepods"
+
+	cgroupCpuQuotaPath  = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+	cgroupCpuPeriodPath = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+	memoryPath          = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
 )
 
 var (
-	currentLoad        atomic.Value
-	currentCpuUsage    atomic.Value
-	currentMemoryUsage atomic.Value
+	cpuPercentUsage    atomic.Value
+	memoryPercentUsage atomic.Value
 
 	memoryStatCollectorOnce sync.Once
 	cpuStatCollectorOnce    sync.Once
@@ -37,16 +37,13 @@ var (
 
 	ssStopChan = make(chan struct{})
 
-	isContainer             bool
-	preSysTotalCpuUsage     atomic.Value
-	preContainerCpuUsage    atomic.Value
-	onlineContainerCpuCount float64
+	isContainer bool
+	cpuCount    float64
 )
 
 func init() {
-	currentLoad.Store(NotRetrievedLoadValue)
-	currentCpuUsage.Store(NotRetrievedCpuUsageValue)
-	currentMemoryUsage.Store(NotRetrievedMemoryValue)
+	cpuPercentUsage.Store(NotRetrievedCpuUsageValue)
+	memoryPercentUsage.Store(NotRetrievedMemoryValue)
 
 	p, err := process.NewProcess(int32(CurrentPID))
 	if err != nil {
@@ -58,26 +55,10 @@ func init() {
 	})
 
 	isContainer = isContainerRunning()
+	cpuCount = float64(runtime.NumCPU())
 	if isContainer {
 		log.Println("environment is  container")
-		var (
-			currentSysCpuTotal       float64
-			currentContainerCpuTotal float64
-		)
-
-		currentSysCpuTotal, err = getSysCpuUsage()
-		if err != nil {
-			log.Fatal(err, "Fail to getSysCpuUsage when initializing system metric")
-			return
-		}
-		currentContainerCpuTotal, err = getContainerCpuUsage()
-		if err != nil {
-			log.Fatal(err, "Fail to getContainerCpuUsage when initializing system metric")
-			return
-		}
-		preContainerCpuUsage.Store(currentContainerCpuTotal)
-		preSysTotalCpuUsage.Store(currentSysCpuTotal)
-		onlineContainerCpuCount, err = getContainerCpuCount()
+		cpuCount, err = getContainerCpuCount()
 		if err != nil {
 			log.Fatal(err, "Fail to getContainerCpuCount when initializing system metric")
 			return
@@ -107,77 +88,19 @@ func isContainerRunning() bool {
 }
 
 func getContainerCpuCount() (float64, error) {
-	path := "/sys/fs/cgroup/cpuacct/cpuacct.usage_percpu"
-	f, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	reader := bufio.NewReader(f)
-	usage, _, err := reader.ReadLine()
-	if err != nil {
-		return 0, err
-	}
-	perCpuUsages := strings.Fields(string(usage))
 
-	return float64(len(perCpuUsages)), nil
-}
+	cpuPeriod, err := readUint(cgroupCpuPeriodPath)
+	if err != nil {
+		return 0, err
+	}
 
-func getSysCpuUsage() (float64, error) {
-	path := "/proc/stat"
-	f, err := os.Open(path)
+	cpuQuota, err := readUint(cgroupCpuQuotaPath)
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
-	reader := bufio.NewReader(f)
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			break
-		}
-		parts := strings.Fields(line)
-		switch parts[0] {
-		case "cpu":
-			if len(parts) < 8 {
-				return 0, fmt.Errorf("invalid number of cpu fields")
-			}
-			var totalClockTicks float64
-			for _, i := range parts[1:8] {
-				v, err := strconv.ParseFloat(i, 64)
-				if err != nil {
-					return 0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
-				}
-				totalClockTicks += v
-			}
-			return totalClockTicks / 100, nil
-		}
-	}
-	return 0, nil
-}
+	cpuCore := float64(cpuQuota) / float64(cpuPeriod)
 
-func getContainerCpuUsage() (float64, error) {
-	path := "/sys/fs/cgroup/cpuacct/cpuacct.usage"
-	f, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		err = f.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-	reader := bufio.NewReader(f)
-	usage, _, err := reader.ReadLine()
-	if err != nil {
-		return 0, err
-	}
-	ns, err := strconv.ParseFloat(strings.TrimSpace(string(usage)), 64)
-	if err != nil {
-		return 0, err
-	}
-	return ns / 1e9, nil
+	return cpuCore, nil
 }
 
 func InitCpuCollector(intervalMs uint32) {
@@ -206,57 +129,13 @@ func retrieveAndUpdateCpuStat() {
 		cpuPercent float64
 		err        error
 	)
-	if isContainer {
-		cpuPercent, err = GetContainerCpuStat()
-		if err != nil {
-			log.Println(err, "Fail to retrieve and update cpu statistic")
-			return
-		}
-	} else {
-		cpuPercent, err = getProcessCpuStat()
-		if err != nil {
-			log.Println(err, "Fail to retrieve and update cpu statistic")
-			return
-		}
-	}
 
-	currentCpuUsage.Store(cpuPercent)
-}
-
-func GetContainerCpuStat() (float64, error) {
-
-	var (
-		currentSysCpuTotal       float64
-		currentContainerCpuTotal float64
-		err                      error
-	)
-
-	currentSysCpuTotal, err = getSysCpuUsage()
+	cpuPercent, err = getProcessCpuStat()
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return
 	}
-	currentContainerCpuTotal, err = getContainerCpuUsage()
-	if err != nil {
-		return 0, err
-	}
-
-	preSysTotalCpu, ok := preSysTotalCpuUsage.Load().(float64)
-	if !ok {
-		return 0, errors.New("preSysTotalCpuUsage load is not float64")
-	}
-	preContainerCpu, ok := preContainerCpuUsage.Load().(float64)
-
-	if !ok {
-		return 0, errors.New("preContainerCpuUsage load is not float64")
-	}
-
-	preSysTotalCpuUsage.Store(currentSysCpuTotal)
-	preContainerCpuUsage.Store(currentContainerCpuTotal)
-
-	if currentSysCpuTotal-preSysTotalCpu == 0 {
-		return 0, err
-	}
-	return (currentContainerCpuTotal - preContainerCpu) * onlineContainerCpuCount / (currentSysCpuTotal - preSysTotalCpu), err
+	cpuPercentUsage.Store(cpuPercent / cpuCount)
 }
 
 func getProcessCpuStat() (float64, error) {
@@ -275,21 +154,20 @@ func getProcessCpuStat() (float64, error) {
 	return p.Percent(0)
 }
 
-func CurrentCpuUsage() float64 {
-	r, ok := currentCpuUsage.Load().(float64)
+func CurrentCpuPercentUsage() float64 {
+	r, ok := cpuPercentUsage.Load().(float64)
 	if !ok {
 		return NotRetrievedCpuUsageValue
 	}
 	return r
 }
 
-func CurrentMemoryUsage() int64 {
-	bytes, ok := currentMemoryUsage.Load().(int64)
+func CurrentMemoryPercentUsage() float32 {
+	r, ok := memoryPercentUsage.Load().(float32)
 	if !ok {
 		return NotRetrievedMemoryValue
 	}
-
-	return bytes
+	return r
 }
 
 func InitMemoryCollector(intervalMs uint32) {
@@ -315,62 +193,39 @@ func InitMemoryCollector(intervalMs uint32) {
 
 func retrieveAndUpdateMemoryStat() {
 	var (
-		memoryUsedBytes int64
-		err             error
+		err           error
+		memoryLimit   int64
+		memoryPercent float32
 	)
+	curProcess := currentProcess.Load()
+	p := curProcess.(*process.Process)
+
 	if isContainer {
-		memoryUsedBytes, err = GetContainerMemoryStat()
+		memoryLimit, err = GetContainerMemoryLimit()
 		if err != nil {
 			log.Println(err, "Fail to retrieve and update container memory statistic")
 			return
 		}
-	} else {
-		memoryUsedBytes, err = GetProcessMemoryStat()
+		memoryInfo, err := p.MemoryInfo()
 		if err != nil {
-			log.Println(err, "Fail to retrieve and update memory statistic")
+			log.Println(err, "Fail to retrieve and update container memory statistic")
+			return
+		}
+		memoryPercent = float32(memoryInfo.RSS) / float32(memoryLimit)
+	} else {
+		memoryPercent, err = p.MemoryPercent()
+		if err != nil {
+			log.Println(err, "Fail to retrieve and update container memory statistic")
 			return
 		}
 	}
-	currentMemoryUsage.Store(memoryUsedBytes)
+	memoryPercentUsage.Store(memoryPercent)
 }
 
-func GetProcessMemoryStat() (int64, error) {
-	curProcess := currentProcess.Load()
-	if curProcess == nil {
-		p, err := process.NewProcess(int32(CurrentPID))
-		if err != nil {
-			return 0, err
-		}
-		currentProcessOnce.Do(func() {
-			currentProcess.Store(p)
-		})
-		curProcess = currentProcess.Load()
-	}
-	p := curProcess.(*process.Process)
-	memInfo, err := p.MemoryInfo()
-	var rss int64
-	if memInfo != nil {
-		rss = int64(memInfo.RSS)
-	}
-
-	return rss, err
-}
-
-func GetContainerMemoryStat() (int64, error) {
-	path := "/sys/fs/cgroup/memory/memory.usage_in_bytes"
-	f, err := os.Open(path)
+func GetContainerMemoryLimit() (int64, error) {
+	usage, err := readUint(memoryPath)
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
-	reader := bufio.NewReader(f)
-	usage, _, err := reader.ReadLine()
-	if err != nil {
-		return 0, err
-	}
-	ns, err := strconv.ParseInt(strings.TrimSpace(string(usage)), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return ns, nil
+	return int64(usage), nil
 }

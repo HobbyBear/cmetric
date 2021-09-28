@@ -27,10 +27,10 @@ func main() {
 	}()
 
 	for {
-		cpu := cmetric.CurrentCpuUsage()
+		cpu := cmetric.CurrentCpuPercentUsage()
 		fmt.Println("cpu ", cpu)
-		memory := cmetric.CurrentMemoryUsage()
-		fmt.Println("memory ", memory/(1024*1024))
+		memory := cmetric.CurrentCpuPercentUsage()
+		fmt.Println("memory ", memory)
 		time.Sleep(2000 * time.Millisecond)
 	}
 
