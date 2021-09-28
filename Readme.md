@@ -10,19 +10,18 @@ juejing link : https://juejin.cn/post/6986598285406371871/
 
 ```
 
-cpu := cmetric.CurrentCpuUsage()
+cpu := cmetric.CurrentCpuPercentUsage()
 		fmt.Println("cpu ", cpu)
-		memory := cmetric.CurrentMemoryUsage()
-		fmt.Println("memory ",memory/(1024 * 1024))
+		memory := cmetric.CurrentCpuPercentUsage()
+		fmt.Println("memory ", memory)
+		time.Sleep(2000 * time.Millisecond)
 
 ```
 
 ### test examples
 
 ```
-func main() {
-
-	go func() {
+go func() {
 	restart:
 		t := time.NewTicker(6 * time.Second)
 
@@ -39,17 +38,6 @@ func main() {
 			}
 		}
 	}()
-
-	for {
-		cpu := cmetric.CurrentCpuUsage()
-		fmt.Println("cpu ", cpu)
-		memory := cmetric.CurrentMemoryUsage()
-		fmt.Println("memory ", memory/(1024*1024))
-		time.Sleep(2000 * time.Millisecond)
-	}
-
-}
-
 
 ```
 
