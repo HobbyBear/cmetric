@@ -2,8 +2,11 @@ package cmetric
 
 import (
 	"bufio"
+	"context"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/process"
 	"log"
+	"math"
 	"os"
 	"runtime"
 	"strings"
@@ -244,5 +247,10 @@ func GetContainerMemoryLimit() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return usage, nil
+	machineMemory, err := mem.VirtualMemoryWithContext(context.TODO())
+	if err != nil {
+		return 0, err
+	}
+	limit := uint64(math.Min(float64(usage), float64(machineMemory.Total)))
+	return limit, nil
 }

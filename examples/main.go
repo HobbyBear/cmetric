@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-
 	go func() {
 	restart:
 		t := time.NewTicker(6 * time.Second)
