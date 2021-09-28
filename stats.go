@@ -25,8 +25,8 @@ const (
 )
 
 var (
-	cpuPercentUsage    atomic.Value
-	memoryPercentUsage atomic.Value
+	cpuPercentUsage    atomic.Value //  avg cpu percent in multi cpu core 100% is the max percent
+	memoryPercentUsage atomic.Value // 100% is the max percent
 
 	memoryStatCollectorOnce sync.Once
 	cpuStatCollectorOnce    sync.Once
@@ -34,6 +34,10 @@ var (
 	CurrentPID         = os.Getpid()
 	currentProcess     atomic.Value
 	currentProcessOnce sync.Once
+
+	memoryRetrieveDuration time.Duration
+
+	cpuRetrieveDuration time.Duration
 
 	ssStopChan = make(chan struct{})
 
@@ -54,6 +58,14 @@ func init() {
 		currentProcess.Store(p)
 	})
 
+	if cpuRetrieveDuration == 0 {
+		cpuRetrieveDuration = 1000 * time.Millisecond
+	}
+
+	if memoryRetrieveDuration == 0 {
+		memoryRetrieveDuration = 1000 * time.Millisecond
+	}
+
 	isContainer = isContainerRunning()
 	cpuCount = float64(runtime.NumCPU())
 	if isContainer {
@@ -64,8 +76,8 @@ func init() {
 			return
 		}
 	}
-	go InitCpuCollector(1000)
-	go InitMemoryCollector(150)
+	initCpuCollector(cpuRetrieveDuration)
+	initMemoryCollector(memoryRetrieveDuration)
 }
 
 func isContainerRunning() bool {
@@ -103,25 +115,27 @@ func getContainerCpuCount() (float64, error) {
 	return cpuCore, nil
 }
 
-func InitCpuCollector(intervalMs uint32) {
-	if intervalMs == 0 {
+func initCpuCollector(d time.Duration) {
+	if d == 0 {
 		return
 	}
-	cpuStatCollectorOnce.Do(func() {
+	retrieveAndUpdateCpuStat()
 
-		retrieveAndUpdateCpuStat()
+	go func() {
+		cpuStatCollectorOnce.Do(func() {
 
-		ticker := time.NewTicker(time.Duration(intervalMs) * time.Millisecond)
-		for {
-			select {
-			case <-ticker.C:
-				retrieveAndUpdateCpuStat()
-			case <-ssStopChan:
-				ticker.Stop()
-				return
+			ticker := time.NewTicker(d)
+			for {
+				select {
+				case <-ticker.C:
+					retrieveAndUpdateCpuStat()
+				case <-ssStopChan:
+					ticker.Stop()
+					return
+				}
 			}
-		}
-	})
+		})
+	}()
 }
 
 func retrieveAndUpdateCpuStat() {
@@ -135,7 +149,8 @@ func retrieveAndUpdateCpuStat() {
 		log.Println(err)
 		return
 	}
-	cpuPercentUsage.Store(cpuPercent / cpuCount)
+	// get avg cpu percent in multi cpu core 100% is the max percent
+	cpuPercentUsage.Store(cpuPercent / cpuCount / 100)
 }
 
 func getProcessCpuStat() (float64, error) {
@@ -170,25 +185,27 @@ func CurrentMemoryPercentUsage() float32 {
 	return r
 }
 
-func InitMemoryCollector(intervalMs uint32) {
-	if intervalMs == 0 {
+func initMemoryCollector(d time.Duration) {
+	if d == 0 {
 		return
 	}
-	memoryStatCollectorOnce.Do(func() {
-		// Initial memory retrieval.
-		retrieveAndUpdateMemoryStat()
+	// Initial memory retrieval.
+	retrieveAndUpdateMemoryStat()
 
-		ticker := time.NewTicker(time.Duration(intervalMs) * time.Millisecond)
-		for {
-			select {
-			case <-ticker.C:
-				retrieveAndUpdateMemoryStat()
-			case <-ssStopChan:
-				ticker.Stop()
-				return
+	go func() {
+		memoryStatCollectorOnce.Do(func() {
+			ticker := time.NewTicker(d)
+			for {
+				select {
+				case <-ticker.C:
+					retrieveAndUpdateMemoryStat()
+				case <-ssStopChan:
+					ticker.Stop()
+					return
+				}
 			}
-		}
-	})
+		})
+	}()
 }
 
 func retrieveAndUpdateMemoryStat() {
