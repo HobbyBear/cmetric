@@ -21,7 +21,7 @@ const (
 
 	cgroupCpuQuotaPath  = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	cgroupCpuPeriodPath = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
-	memoryPath          = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+	memoryPath          = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 )
 
 var (
@@ -211,7 +211,7 @@ func initMemoryCollector(d time.Duration) {
 func retrieveAndUpdateMemoryStat() {
 	var (
 		err           error
-		memoryLimit   int64
+		memoryLimit   uint64
 		memoryPercent float32
 	)
 	curProcess := currentProcess.Load()
@@ -239,10 +239,10 @@ func retrieveAndUpdateMemoryStat() {
 	memoryPercentUsage.Store(memoryPercent)
 }
 
-func GetContainerMemoryLimit() (int64, error) {
+func GetContainerMemoryLimit() (uint64, error) {
 	usage, err := readUint(memoryPath)
 	if err != nil {
 		return 0, err
 	}
-	return int64(usage), nil
+	return usage, nil
 }
