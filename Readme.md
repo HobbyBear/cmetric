@@ -11,10 +11,10 @@ juejing link : https://juejin.cn/post/6986598285406371871/
 ```
 
 cpu := cmetric.CurrentCpuPercentUsage()
-		fmt.Println("cpu ", cpu)
-		memory := cmetric.CurrentCpuPercentUsage()
-		fmt.Println("memory ", memory)
-		time.Sleep(2000 * time.Millisecond)
+fmt.Println("cpu ", cpu)
+memory := cmetric.CurrentMemoryPercentUsage()
+fmt.Println("memory ", memory)
+time.Sleep(2000 * time.Millisecond)
 
 ```
 
@@ -44,31 +44,33 @@ go func() {
 i start a 0.5cpu container . then i exec the code in a container. we can see the cpu rate changes and the cpu is up to 0.5 the will not up to more.
 
 ```shell
-root@019edf83f185:/go/src/cmetric/examples# ./examples 
-2021/07/19 11:04:05 environment is  container
-cpu  -1
-memory  0
-cpu  0.5143167487149263
-memory  8
-cpu  0.484085295650434
-memory  8
+pu  0
+memory  0.0009067918
+cpu  1.0382111932603482
+memory  0.00097522896
+cpu  1.0270122977276814
+memory  0.00097522896
+cpu  0.9752556716859127
+memory  0.00097522896
 cpu down===========
-cpu  0.5033084169999711
-memory  8
-cpu  0.00460833034863899
-memory  8
-cpu  0.004765296517979556
-memory  8
+cpu  0.01998823174866435
+memory  0.00097522896
+cpu  0
+memory  0.00097522896
+cpu  0
+memory  0.00097522896
 cpu up===========
-cpu  0.004004104568513914
-memory  8
-cpu  0.5060104945249576
-memory  8
-cpu  0.4964300169136462
-memory  9
+cpu  1.0202506439554495
+memory  0.0010586367
+cpu  1.027026345137049
+memory  0.0010586367
+cpu  1.0184514486461407
+memory  0.0010586367
 cpu down===========
-cpu  0.49390430746022085
-memory  9
+cpu  0
+memory  0.0010586367
+cpu  0
+memory  0.0010586367
 ```
 
 
