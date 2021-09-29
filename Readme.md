@@ -4,6 +4,8 @@
 if environment is container, the cpu ,memory is relative to container,
 else  the metrics is relative to host.
 
+cpu percent is the  avg cpu percent in multi cpu core and 100% is the max percent
+
 juejing link : https://juejin.cn/post/6986598285406371871/
 
 ### usage
